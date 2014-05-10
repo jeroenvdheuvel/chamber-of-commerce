@@ -2,8 +2,8 @@
     "name": "werkspot/chamber-of-commerce",
     "license": "MIT",
     "type": "library",
-    "description": "Chamber of Commerce data retriever",
-    "keywords": ["Chamber of Commerce", "Kamer van Kkoophandel", "CoC", "KvK"],
+    "description": "Chamber of Commerce retrieval service",
+    "keywords": ["Chamber of Commerce", "Kamer van Koophandel", "CoC", "KvK"],
     "authors": [
         {
             "name": "Jeroen van den Heuvel",
@@ -12,7 +12,7 @@
     ],
     "autoload": {
         "psr-4": {
-            "Werkspot\\Component\\ChamberOfCommerce\\": "src/Werkspot/ChamberOfCommerce"
+            "Werkspot\\Component\\ChamberOfCommerce\\": "src"
         }
     },
     "minimum-stability": "stable",

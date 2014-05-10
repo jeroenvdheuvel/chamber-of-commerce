@@ -1,1 +1,1 @@
-Chamber of Commerce retrieval service written in PHP
+Chamber of Commerce retrieval service
