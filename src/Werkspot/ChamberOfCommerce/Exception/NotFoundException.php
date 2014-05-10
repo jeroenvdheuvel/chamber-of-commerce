@@ -5,7 +5,7 @@ namespace Werkspot\Component\ChamberOfCommerce\Exception;
 class NotFoundException extends ChamberOfCommerceRecordException
 {
     /**
-     * @param string $chamberOfCommerceNumber
+     * @param string|int $chamberOfCommerceNumber
      */
     public function __construct($chamberOfCommerceNumber)
     {

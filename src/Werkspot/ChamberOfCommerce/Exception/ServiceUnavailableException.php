@@ -2,15 +2,19 @@
 
 namespace Werkspot\Component\ChamberOfCommerce\Exception;
 
-use RuntimeException;
-
-class ServiceUnavailableException extends RuntimeException implements ChamberOfCommerceExceptionInterface
+class ServiceUnavailableException extends ChamberOfCommerceRecordException
 {
     /**
-     * @param string $name
+     * @param int|string $chamberOfCommerceNumber
+     * @param string $serviceName
      */
-    public function __construct($name)
+    public function __construct($chamberOfCommerceNumber, $serviceName)
     {
-        parent::__construct(sprintf('Service [%s] is unavailable', $name));
+        $message = sprintf(
+            'Service [%s] is unavailable while trying to retrieve chamber of commerce number [%s]',
+            $serviceName, $chamberOfCommerceNumber
+        );
+
+        parent::__construct($chamberOfCommerceNumber, $message);
     }
 }
