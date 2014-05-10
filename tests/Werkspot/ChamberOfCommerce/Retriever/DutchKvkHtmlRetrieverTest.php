@@ -243,6 +243,6 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
      */
     private function getResponseDataForChamberOfCommerceNumber($chamberOfCommerceNumber)
     {
-        return file_get_contents(dirname(__FILE__) . '/../data/dutch-chamber-of-commerce/kvk.nl/' . $chamberOfCommerceNumber . '.html');
+        return file_get_contents(dirname(__FILE__) . '/../data/dutch-kvk-html/' . $chamberOfCommerceNumber . '.html');
     }
 }
