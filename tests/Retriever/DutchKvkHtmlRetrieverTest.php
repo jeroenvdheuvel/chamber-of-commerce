@@ -3,13 +3,13 @@
 namespace Werkspot\Component\ChamberOfCommerce\Tests\Retriever;
 
 use PHPUnit_Framework_TestCase;
-use Mockery;
-use Guzzle\Service\ClientInterface;
-use Guzzle\Http\Exception\CurlException;
-use Guzzle\Http\Message\RequestInterface;
+use Guzzle\Http\Client;
+use Guzzle\Plugin\Mock\MockPlugin;
 use Guzzle\Http\Message\Response;
-use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerceRecord;
+use Guzzle\Http\Exception\CurlException;
+use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Werkspot\Component\ChamberOfCommerce\Retriever\DutchKvkHtmlRetriever;
+use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerceRecord;
 
 class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
 {
@@ -22,7 +22,9 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
      */
     public function testFindWithValidChamberOfCommerceNumber($number, $name, $zipCode, $city, $streetName, $houseNumber, $houseNumberAddition, $internetAddress)
     {
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClient($number), self::URL);
+        $client = $this->getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number);
+
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $givenChamberOfCommerce = $retriever->find($number);
 
         $expectedChamberOfCommerce = new ChamberOfCommerceRecord($number, $name, 'nl', $zipCode, $city, $streetName, $houseNumber, $houseNumberAddition, $internetAddress);
@@ -52,9 +54,11 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
      */
     public function testFindWhileServiceIsUnavailable()
     {
+        $client = $this->getClientThatThrowsException(new CurlException());
+
         $number = 1;
 
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClientThatThrowsExceptionOnSend($number), self::URL);
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $retriever->find($number);
     }
 
@@ -65,7 +69,9 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
      */
     public function testFindNonexistentChamberOfCommerceNumber($number)
     {
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClient($number), self::URL);
+        $client = $this->getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number);
+
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $retriever->find($number);
     }
 
@@ -90,7 +96,9 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
         $expectedExceptionMessage = sprintf('number [%s] has invalid status [%s]', $number, $status);
         $this->setExpectedException($expectedException, $expectedExceptionMessage);
 
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClient($number), self::URL);
+        $client = $this->getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number);
+
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $retriever->find($number);
     }
 
@@ -119,7 +127,9 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
 
         $number = '18079951';
 
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClient($number, $responseStatusCode), self::URL);
+        $client = $this->getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number, $responseStatusCode);
+
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $retriever->find($number);
     }
 
@@ -130,13 +140,11 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
     {
         return array(
             array(201),
+            array(202),
+            array(205),
             array(301),
             array(302),
-            array(400),
-            array(404),
-            array(500),
-            array(501),
-            array(503),
+            array(304),
         );
     }
 
@@ -149,7 +157,9 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
      */
     public function testFindWithInvalidResponse($number)
     {
-        $retriever = new DutchKvkHtmlRetriever($this->getHttpClient($number), self::URL);
+        $client = $this->getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number);
+
+        $retriever = new DutchKvkHtmlRetriever($client, self::URL);
         $retriever->find($number);
     }
 
@@ -165,76 +175,40 @@ class DutchKvkHtmlRetrieverTest extends PHPUnit_Framework_TestCase
     }
 
     /**
-     * @return ClientInterface
+     * @param Response $response
+     * @return Client
      */
-    private function getHttpClient($chamberOfCommerceNumber, $responseStatusCode = 200)
+    private function getClientThatReturnsResponseChamberOfCommerceDataWithStatusCode($number, $statusCode = 200)
     {
-        $client = Mockery::mock('Guzzle\Http\ClientInterface');
+        $response = new Response($statusCode, array(), $this->getResponseDataForChamberOfCommerceNumber($number));
+        $plugin = new MockPlugin();
+        $plugin->addResponse($response);
 
-        $request = $this->getHttpRequestForChamberOfCommerceNumber($chamberOfCommerceNumber, $responseStatusCode);
-        $client->shouldReceive('get')->once()->with(self::URL . $chamberOfCommerceNumber)->andReturn($request);
-
-        return $client;
+        return $this->getClientAndAddSubscriber($plugin);
     }
 
     /**
-     * @return ClientInterface
+     * @param CurlException $e
+     * @return Client
      */
-    private function getHttpClientThatThrowsExceptionOnSend($chamberOfCommerceNumber)
+    private function getClientThatThrowsException(CurlException $e)
     {
-        $client = Mockery::mock('Guzzle\Http\ClientInterface');
+        $plugin = new MockPlugin();
+        $plugin->addException($e);
 
-        $request = $this->getHttpRequestForChamberOfCommerceNumberThatThrowsServiceCurlExceptionOnSend();
-        $client->shouldReceive('get')->once()->with(self::URL . $chamberOfCommerceNumber)->andReturn($request);
-
-        return $client;
+        return $this->getClientAndAddSubscriber($plugin);
     }
 
     /**
-     * @param string $chamberOfCommerceNumber
-     * @param int $responseStatusCode
-     * @return RequestInterface
+     * @param EventSubscriberInterface $s
+     * @return Client
      */
-    private function getHttpRequestForChamberOfCommerceNumber($chamberOfCommerceNumber, $responseStatusCode = 200)
+    private function getClientAndAddSubscriber(EventSubscriberInterface $s)
     {
-        $response = $this->getHttpResponseForChamberOfCommerceNumber($chamberOfCommerceNumber, $responseStatusCode);
+        $c = new Client();
+        $c->addSubscriber($s);
 
-        $request = Mockery::mock('Guzzle\Http\Message\RequestInterface');
-        $request->shouldReceive('send')->once()->withNoArgs()->andReturn($response);
-
-        return $request;
-    }
-
-    /**
-     * @return RequestInterface
-     */
-    private function getHttpRequestForChamberOfCommerceNumberThatThrowsServiceCurlExceptionOnSend()
-    {
-        $request = Mockery::mock('Guzzle\Http\Message\RequestInterface');
-        $request->shouldReceive('send')->andThrow(new CurlException());
-        return $request;
-    }
-
-    /**
-     * @param string $chamberOfCommerceNumber
-     * @param int $statusCode
-     * @return Response
-     */
-    private function getHttpResponseForChamberOfCommerceNumber($chamberOfCommerceNumber, $statusCode = 200)
-    {
-        $data = $this->getResponseDataForChamberOfCommerceNumber($chamberOfCommerceNumber);
-
-        $response = Mockery::mock('Guzzle\Http\Message\Response');
-
-        $response->shouldReceive('getStatusCode')->between(1, 2)->withNoArgs()->andReturn($statusCode);
-
-        $getBodyMethodCalls = $statusCode === 200 ? 2 : 0;
-        $response->shouldReceive('getBody')->between(0, $getBodyMethodCalls)->with(true)->andReturn($data);
-
-        $getEffectiveUrlMethodCalls = $statusCode === 200 ? 0 : 1;
-        $response->shouldReceive('getEffectiveUrl')->times($getEffectiveUrlMethodCalls)->withNoArgs()->andReturn('www.werkspot.nl');
-
-        return $response;
+        return $c;
     }
 
     /**
