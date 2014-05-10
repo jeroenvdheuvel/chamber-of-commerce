@@ -2,7 +2,7 @@
 
 namespace Werkspot\Component\ChamberOfCommerce\Model;
 
-class ChamberOfCommerce
+class ChamberOfCommerceRecord
 {
     /** @var string|int */
     private $number;
@@ -19,7 +19,7 @@ class ChamberOfCommerce
     /** @var string|int */
     private $houseNumber;
 
-    /** @var string */
+    /** @var string|int */
     private $houseNumberAddition;
 
     /** @var string */
@@ -31,10 +31,21 @@ class ChamberOfCommerce
     /** @var string */
     private $internetAddress;
 
-    public function __construct($number, $name, $zipCode, $city, $streetName, $houseNumber, $houseNumberAddition, $internetAddress)
+    /**
+     * @param string|int $number
+     * @param string $name
+     * @param string $zipCode
+     * @param string $city
+     * @param string $streetName
+     * @param string|int $houseNumber
+     * @param string|int $houseNumberAddition
+     * @param string $internetAddress
+     */
+    public function __construct($number, $name, $countryCode, $zipCode, $city, $streetName, $houseNumber, $houseNumberAddition, $internetAddress)
     {
         $this->number = $number;
         $this->name = $name;
+        $this->countryCode = $countryCode;
         $this->zipCode = $zipCode;
         $this->city = $city;
         $this->streetName = $streetName;
@@ -76,7 +87,7 @@ class ChamberOfCommerce
     }
 
     /**
-     * @return string
+     * @return string|int
      */
     public function getHouseNumberAddition()
     {
@@ -105,5 +116,13 @@ class ChamberOfCommerce
     public function getCity()
     {
         return $this->city;
+    }
+
+    /**
+     * @return string
+     */
+    public function getCountryCode()
+    {
+        return $this->countryCode;
     }
 }

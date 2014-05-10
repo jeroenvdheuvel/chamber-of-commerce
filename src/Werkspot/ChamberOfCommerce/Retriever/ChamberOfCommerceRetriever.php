@@ -2,13 +2,13 @@
 
 namespace Werkspot\Component\ChamberOfCommerce\Retriever;
 
-use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerce;
+use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerceRecord;
 
 interface ChamberOfCommerceRetriever
 {
     /**
      * @param string|int $chamberOfCommerceNumber
-     * @return ChamberOfCommerce
+     * @return ChamberOfCommerceRecord
      */
     public function find($chamberOfCommerceNumber);
 }

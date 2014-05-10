@@ -3,8 +3,12 @@
 namespace Werkspot\Component\ChamberOfCommerce\Retriever;
 
 use Guzzle\Http\ClientInterface;
+use Guzzle\Http\Exception\CurlException;
 use Symfony\Component\DomCrawler\Crawler;
-use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerce;
+use Werkspot\Component\ChamberOfCommerce\Exception\NotFoundException;
+use Werkspot\Component\ChamberOfCommerce\Exception\ServiceUnavailableException;
+use Werkspot\Component\ChamberOfCommerce\Exception\UnsubscribedFromChamberOfCommerceException;
+use Werkspot\Component\ChamberOfCommerce\Model\ChamberOfCommerceRecord;
 
 class DutchChamberOfCommerceRetriever implements ChamberOfCommerceRetriever
 {
@@ -33,7 +37,12 @@ class DutchChamberOfCommerceRetriever implements ChamberOfCommerceRetriever
      */
     public function find($chamberOfCommerceNumber)
     {
-        $response = $this->client->get($this->url . $chamberOfCommerceNumber)->send();
+        try {
+            $response = $this->client->get($this->url . $chamberOfCommerceNumber)->send();
+        } catch (CurlException $e) {
+            $host = parse_url($this->url, PHP_URL_HOST);
+            throw new ServiceUnavailableException($host);
+        }
 
         // TODO: Check status code
 
@@ -78,10 +87,22 @@ class DutchChamberOfCommerceRetriever implements ChamberOfCommerceRetriever
                     list($fetchedZipCode, $fetchedCity) = explode("\n", $propertyValue);
                     $fetchedZipCode = $this->trim($fetchedZipCode);
                     $fetchedCity = $this->trim($fetchedCity);
+                    break;
+                case 'status':
+                    if (stripos($propertyValue, 'uitgeschreven uit het handelsregister') !== false) {
+                        throw new UnsubscribedFromChamberOfCommerceException($chamberOfCommerceNumber);
+                    }
+                    break;
             }
         }
 
-        return new ChamberOfCommerce($fetchedChamberOfCommerceNumber, $fetchedName, $fetchedZipCode, $fetchedCity, $fetchedStreetName, $fetchedHouseNumber, $fetchedHouseNumberAddition, $fetchedInternetAddress);
+        if (empty($fetchedChamberOfCommerceNumber)) {
+            throw new NotFoundException($chamberOfCommerceNumber);
+        }
+
+        $fetchedHouseNumberAddition =  null; // TODO: Is the houseNumberAddition reliable?
+
+        return new ChamberOfCommerceRecord($fetchedChamberOfCommerceNumber, $fetchedName, 'nl', $fetchedZipCode, $fetchedCity, $fetchedStreetName, $fetchedHouseNumber, $fetchedHouseNumberAddition, $fetchedInternetAddress);
     }
 
     /**
